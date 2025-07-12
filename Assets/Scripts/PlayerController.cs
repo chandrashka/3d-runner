@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -10,14 +11,24 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpForce = 7f;
 
     private int _currentLane;
-    private bool _isGrounded = true;
+    private float _speed;
 
     private Vector2 _startTouchPosition;
     private Vector2 _endTouchPosition;
 
+    public Action OnCoinCollected { get; set; }
+    public Action OnDeath { get; set; }
+
+    public void StartGame()
+    {
+        _speed = forwardSpeed;
+        rb.isKinematic = false;
+    }
+
     private void Start()
     {
-        transform.position = new Vector3(0, transform.position.y, transform.position.z);
+        _speed = 0;
+        rb.isKinematic = true;
     }
 
     private void Update()
@@ -28,7 +39,10 @@ public class PlayerController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, forwardSpeed);
+        if (rb.isKinematic)
+            return;
+
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, rb.linearVelocity.y, _speed);
     }
 
     private void HandleInput()
@@ -80,16 +94,20 @@ public class PlayerController : MonoBehaviour
 
     private void Jump()
     {
-        if (!_isGrounded)
-            return;
-
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        _isGrounded = false;
+        if (Mathf.Abs(rb.linearVelocity.y) < 0.01f)
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
-    private void OnCollisionEnter(Collision collision)
+    private void OnTriggerEnter(Collider other)
     {
-        if (collision.contacts[0].normal.y > 0.5f)
-            _isGrounded = true;
+        if (other.CompareTag("Coin"))
+        {
+            OnCoinCollected?.Invoke();
+        }
+        else if (other.CompareTag("Obstacle"))
+        {
+            OnDeath?.Invoke();
+            Start();
+        }
     }
 }
